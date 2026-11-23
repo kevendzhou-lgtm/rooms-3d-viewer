@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex"><title>Private page</title></head>
+<body><p id="m" style="font:16px -apple-system,sans-serif;margin:2rem">Loading…</p>
+<script>
+const reload = () => location.reload();  // a corrected link only changes the fragment, which does not reload by itself
+window.onhashchange = reload;
+(async () => {
+  const bin = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  try {
+    const key = await crypto.subtle.importKey('raw', bin(location.hash.slice(1).replace(/-/g, '+').replace(/_/g, '/')), 'AES-GCM', false, ['decrypt']);
+    const buf = new Uint8Array(await (await fetch('site.bin')).arrayBuffer());
+    const site = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: buf.slice(0, 12) }, key, buf.slice(12))));
+    let html = site.html;
+    // shortcut: every asset is a script; add a MIME type per extension if images are ever added
+    for (const [p, data] of Object.entries(site.files)) html = html.split(p).join(URL.createObjectURL(new Blob([bin(data)], { type: 'text/javascript' })));
+    document.open(); document.write(html); document.close();
+    window.onhashchange = reload;  // document.open() dropped the handler
+  } catch (e) { document.getElementById('m').textContent = 'Private page.'; }
+})();
+</script></body></html>
